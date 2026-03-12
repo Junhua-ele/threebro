@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鲸吞天下</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="start-screen" id="startScreen">
+        <h1 class="game-title">🏰 鲸吞天下</h1>
+        <p class="game-subtitle">文字策略对战 · 主持人判定制</p>
+        <div class="setup-panel fade-in">
+            <h2 class="setup-title">⚔️ 游戏设置</h2>
+            <div class="player-count-section">
+                <label class="section-label" for="playerSlider">选择玩家人数（2-10 人）</label>
+                <div class="player-count-display" id="playerCountDisplay">2</div>
+                <div class="slider-container">
+                    <input type="range" class="player-slider" id="playerSlider" min="2" max="10" value="2" step="1">
+                    <div class="slider-labels">
+                        <span>2 人</span>
+                        <span>10 人</span>
+                    </div>
+                </div>
+            </div>
+            <div class="game-info">
+                <p><span>👥 玩家数量</span> <strong id="playerCountInfo">2</strong></p>
+                <p><span>🏙️ 初始城池</span> <strong>100</strong> 座/人</p>
+                <p><span>🏰 总城池数</span> <strong id="totalCities">200</strong> 座</p>
+                <p><span>⚔️ 初始兵力</span> <strong>5,000</strong> 人/方</p>
+            </div>
+            <div class="naming-section" id="namingSection">
+                <div class="naming-title">
+                    <span>✏️ 玩家命名</span>
+                    <button class="quick-name-btn" onclick="generateRandomNames()">🎲 随机命名</button>
+                </div>
+                <div id="nameInputsContainer"></div>
+            </div>
+            <button class="start-btn" onclick="startGame()">🚀 开始游戏</button>
+        </div>
+    </div>
+
+    <div class="game-screen" id="gameScreen">
+        <header class="game-header">
+            <div class="header-left">
+                <h1 class="header-title">🏰 城池争霸</h1>
+                <div class="turn-info">
+                    <div class="info-item">
+                        <span class="info-label">回合</span>
+                        <span class="info-value" id="turnNumber">1</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">当前阶段</span>
+                        <span class="info-value turn-indicator" id="currentPlayer">玩家1</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" onclick="showRankings()">📊 排行</button>
+                <button class="header-btn primary" onclick="endTurn()">结束回合</button>
+                <button class="header-btn" onclick="showMenu()">菜单</button>
+            </div>
+        </header>
+
+        <div class="game-main">
+            <div class="event-log" id="eventLog">
+                <div class="log-title">📜 战报</div>
+                <div id="logContent">
+                    <div class="log-entry"><span class="log-time">[第1回合]</span> 游戏尚未开始。</div>
+                </div>
+            </div>
+            <div class="players-grid" id="playersGrid"></div>
+        </div>
+    </div>
+
+    <div class="action-order-panel" id="actionOrderPanel">
+        <div class="panel-header">
+            <span>📋 行动顺序</span>
+            <span class="turn-phase" id="turnPhase">决策阶段</span>
+        </div>
+        <div class="order-list" id="orderList"></div>
+    </div>
+
+    <div class="modal-overlay side-panel-overlay" id="actionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚔️ 选择本回合行动</h3>
+                <span class="current-player-name" id="actionPlayerName"></span>
+            </div>
+            <div class="action-options">
+                <button class="action-card" onclick="selectAction('duel')">
+                    <div class="action-icon">⚔️</div>
+                    <div class="action-name">约战</div>
+                    <div class="action-desc">向一方发起公开决斗，以城池作为筹码</div>
+                </button>
+                <button class="action-card" onclick="selectAction('raid')">
+                    <div class="action-icon">🥷</div>
+                    <div class="action-name">奇袭</div>
+                    <div class="action-desc">偷袭一方势力，成功夺 10 城，失败反失 5 城</div>
+                </button>
+                <button class="action-card" onclick="selectAction('defend')">
+                    <div class="action-icon">🛡️</div>
+                    <div class="action-name">守城</div>
+                    <div class="action-desc">针对一方布防，若其奇袭你则反制夺 20 城</div>
+                </button>
+                <button class="action-card" onclick="selectAction('develop')">
+                    <div class="action-icon">🎯</div>
+                    <div class="action-name">发育</div>
+                    <div class="action-desc">掷骰子，奇数抽取锦囊，偶数增加 5 座城池</div>
+                </button>
+            </div>
+            <div class="modal-actions" style="margin-top:1rem;">
+                <button class="modal-btn cancel" onclick="useStrategyFromAction()">🎴 使用锦囊</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay side-panel-overlay" id="duelModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚔️ 发起约战</h3>
+            </div>
+            <div class="duel-setup">
+                <div class="setup-row">
+                    <label for="duelTarget">选择对手：</label>
+                    <select id="duelTarget" class="setup-select"></select>
+                </div>
+                <div class="setup-row">
+                    <label for="duelStake">城池筹码（1-30）：</label>
+                    <div class="number-input-wrapper">
+                        <button type="button" class="number-btn minus" onclick="adjustStake(-1)">-</button>
+                        <input type="text" id="duelStake" class="setup-input number-input" value="10" inputmode="numeric" pattern="[0-9]*" autocomplete="off" oninput="validateStakeInput(this)" onblur="finalizeStake(this)">
+                        <button type="button" class="number-btn plus" onclick="adjustStake(1)">+</button>
+                    </div>
+                </div>
+                <div class="duel-rules">
+                    <p>📜 约战规则：</p>
+                    <ul>
+                        <li>接受：双方决斗，胜者获得全部筹码城池</li>
+                        <li>拒绝：对方需进贡一半筹码城池</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="closeDuelModal()">取消</button>
+                <button class="modal-btn confirm" onclick="confirmDuel()">发起约战</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay side-panel-overlay" id="raidModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🥷 发起奇袭</h3>
+            </div>
+            <div class="duel-setup">
+                <div class="setup-row">
+                    <label for="raidTarget">选择奇袭目标：</label>
+                    <select id="raidTarget" class="setup-select"></select>
+                </div>
+                <div class="duel-rules">
+                    <p>📜 奇袭规则：</p>
+                    <ul>
+                        <li>若对方本回合没有对你守城，则由主持人判定成功或失败</li>
+                        <li>成功：奇袭方占领目标 10 座城池</li>
+                        <li>失败：目标方反夺奇袭方 5 座城池</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="closeRaidModal()">取消</button>
+                <button class="modal-btn confirm" onclick="confirmRaid()">发起奇袭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay side-panel-overlay" id="defendModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🛡️ 布置守城</h3>
+            </div>
+            <div class="duel-setup">
+                <div class="setup-row">
+                    <label for="defendTarget">重点防守对象：</label>
+                    <select id="defendTarget" class="setup-select"></select>
+                </div>
+                <div class="duel-rules">
+                    <p>📜 守城规则：</p>
+                    <ul>
+                        <li>若该对象本回合对你发动奇袭，则其奇袭直接失败</li>
+                        <li>你将立即反制并占领对方 20 座城池</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="closeDefendModal()">取消</button>
+                <button class="modal-btn confirm" onclick="confirmDefend()">确认守城</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay side-panel-overlay" id="duelResponseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚔️ 战书送达</h3>
+            </div>
+            <div class="duel-invitation">
+                <p><span id="inviterName"></span> 向 <span id="responderName"></span> 发起约战。</p>
+                <div class="stake-info">
+                    <div>🎲 筹码：<span id="invitationStake"></span> 座城池</div>
+                    <div>拒绝进贡：<span id="tributeAmount"></span> 座城池</div>
+                </div>
+                <div class="choice-hint">
+                    <p>主持人选择响应结果：</p>
+                    <ul>
+                        <li><span class="highlight accept">接受</span>：双方决斗，胜者通吃筹码</li>
+                        <li><span class="highlight reject">拒绝</span>：防守方进贡一半筹码城池</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn reject" onclick="respondDuel(false)">🛡️ 拒绝</button>
+                <button class="modal-btn confirm" onclick="respondDuel(true)">⚔️ 接受</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay side-panel-overlay" id="raidJudgeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🥷 奇袭判定</h3>
+            </div>
+            <div class="duel-invitation">
+                <p><span id="raidAttackerName"></span> 对 <span id="raidDefenderName"></span> 发动了奇袭。</p>
+                <div class="choice-hint">
+                    <p>主持人判定奇袭结果：</p>
+                    <ul>
+                        <li><span class="highlight accept">成功</span>：奇袭方夺取 10 座城池</li>
+                        <li><span class="highlight reject">失败</span>：目标方反夺 5 座城池</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn reject" onclick="resolveRaid(false)">判定失败</button>
+                <button class="modal-btn confirm" onclick="resolveRaid(true)">判定成功</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay side-panel-overlay" id="duelJudgeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚔️ 约战胜负判定</h3>
+            </div>
+            <div class="duel-invitation">
+                <p><span id="duelJudgeChallenger"></span> 与 <span id="duelJudgeDefender"></span> 已接受约战。</p>
+                <div class="stake-info">
+                    <div>🎲 争夺筹码：<span id="duelJudgeStake"></span> 座城池</div>
+                </div>
+                <div class="choice-hint">
+                    <p>请由主持人直接判定本次约战胜者：</p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn reject" onclick="resolveDuelWinner('defender')">判定守方胜</button>
+                <button class="modal-btn confirm" onclick="resolveDuelWinner('challenger')">判定攻方胜</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay settlement-overlay" id="settlingModal">
+        <div class="modal-content settling">
+            <div class="settling-animation" id="settlingAnim">⚔️</div>
+            <h3 id="settlingTitle">正在结算本回合行动...</h3>
+            <div id="settlingList"></div>
+            <div class="settle-actions" id="settleActions" style="display:none; margin-top:1.5rem;">
+                <div class="host-adjust-panel" id="hostAdjustPanel">
+                    <div class="host-adjust-header">
+                        <h4>主持人手动修正</h4>
+                        <p>结算完成后，可直接修改每位玩家的名称、兵力、城池、资源、攻防和锦囊。</p>
+                    </div>
+                    <div class="host-adjust-grid" id="hostAdjustGrid"></div>
+                    <div class="host-adjust-actions">
+                        <button class="modal-btn cancel" onclick="resetHostAdjustments()">重置编辑</button>
+                        <button class="modal-btn confirm" onclick="applyHostAdjustments()">保存修改</button>
+                    </div>
+                </div>
+                <button class="modal-btn confirm" onclick="finishSettlementAndNextTurn()" style="width:100%;">开始下一回合</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
